@@ -27,20 +27,47 @@ The input spec is straightforward and derived from the serendipity-extract:
 */
 
 import (
-	"encoding/csv"
+	//"encoding/csv"
 	"fmt"
-	"io"
-	"log"
-	"strings"
+	//"io"
+	//"log"
+	"os"
+	//"strings"
+	"text/template"
 )
 
+type Post struct {
+     Date 	string
+     Title	string
+     Tags	[]string
+     Categories	[]string
+     Permalink	[]string
+     Body	string
+}
+
+const templ = `
++++
+Title	= {{.Title}}
+Date	= {{.Date}}
+Categories = [{{range $index, $elmt := .Categories}}{{if $index}},"{{$elmt}}"{{else}}"{{$elmt}}"{{end}}{{end}}]
+Tags	= [{{range $index, $elmt := .Tags}}{{if $index}},"{{$elmt}}"{{else}}"{{$elmt}}"{{end}}{{end}}]
+Aliases = [{{range $index, $elmt := .Permalink}}{{if $index}},"{{$elmt}}"{{else}}"{{$elmt}}"{{end}}{{end}}]
++++
+{{.Body}}
+
+`
+
 func main() {
-	in := `timestamp,title,description, tags, categories, permalink, project_url, body
+/*
+	 in := `timestamp,title,description, tags, categories, permalink, project_url, body
 2005-11-26T19:07:00ZNZDT,French Toast,Test,,"[""Food""]",archives/775-French-Toast.html,http://diaspora.gen.nz/~rodgerd/,"<p>I'm just not that fond of french toast as it appears in most Wellington cafés. Mostly it's done with thick bread and incredibly sweet, usually with fruit or maple syrup.</p><p>I grew up with french toast being a savoury treat: egg, milk, pepper, and salt whisked together, with plain toast slice bread dunked into it and then pan-fried in butter until golden brown. Dee-licious.</p>"
 `
-	r := csv.NewReader(strings.NewReader(in))
+*/
+
+	// r := csv.NewReader(strings.NewReader(in))
 
 	for {
+		/*
 		record, err := r.Read()
 		if err == io.EOF {
 			break
@@ -48,7 +75,29 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		*/
 
-		fmt.Println(record)
+		post := Post{
+		     Title:	"French Toast",
+		     Date:	"2005-11-26T19:07:00ZNZDT",
+		     Tags:	[]string{"food", "wellington"},
+		     Categories: []string{"Food"},
+		     Permalink: []string{"archives/775-French-Toast"},
+		     Body: 	"<p>I'm just not that fond of french toast as it appears in most Wellington cafés. Mostly it's done with thick bread and incredibly sweet, usually with fruit or maple syrup.</p><p>I grew up with french toast being a savoury treat: egg, milk, pepper, and salt whisked together, with plain toast slice bread dunked into it and then pan-fried in butter until golden brown. Dee-licious.</p>",
+		}
+
+		t := template.New("Post template")
+		t, err := t.Parse(templ)
+		checkError(err)
+
+		err = t.Execute(os.Stdout, post)
+		checkError(err)
 	}
+}
+
+func checkError(err error) {
+     if err != nil {
+     	fmt.Println("Fatal error ", err.Error())
+	os.Exit(1)
+     }
 }
