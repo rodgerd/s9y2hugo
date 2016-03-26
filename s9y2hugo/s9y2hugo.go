@@ -12,17 +12,19 @@ and use Hugo's "alias" feature to carry over the permalinks as
 aliases.
 
 The input spec is straightforward and derived from the serendipity-extract:
-    Column     Source Description     	      Output Field
-    ------     ------------------	      ------------
-    [0]        Timestamp-with-timezone	      Date
-    [1]        Title			      Title
-    [2]        Description		      
-    [3]        Comma-delimeted array of tags  Tags in the format ["tag1","tag2"]
-    [4]        Comma-delimeted array of categories
-					      Categories in the format ["cat1","cat2"]
-    [5]        Permalink 		      Aliases in the format ["alias1"]
-    [6]        The project URL		      Dropped - this properly belongs in config.toml
-    [7]        The body text		      Body text.
+    Column    Source Description     				Output Field
+    ------    ------------------	      	  ------------
+    [0]       Timestamp-with-timezone				Date
+    [1]       Title			      							Title
+    [2]       Description
+    [3]       Comma-delimeted array of tags  Tags in the format ["tag1","tag2"]
+    [4]       Comma-delimeted array of categories
+					    															Categories in the format ["cat1","cat2"]
+    [5]       Permalink 		      					Aliases in the format ["alias1"]
+    [6]       The project URL		      			Dropped - this properly belongs in config.toml
+		[7]				isdraft												Whether the entry is draft or not.
+    [8]       Body						      				Body text.
+		[9]				extended											Any extended text.
 
 */
 
@@ -32,7 +34,8 @@ import (
 	//"io"
 	//"log"
 	"os"
-	//"strings"
+	"path"
+	"strings"
 	"text/template"
 )
 
@@ -66,7 +69,31 @@ func main() {
 
 	// r := csv.NewReader(strings.NewReader(in))
 
-	for {
+	posts := []Post{
+		{		     Title:	"French Toast",
+				     Date:	"2005-11-26T19:07:00ZNZDT",
+				     Tags:	[]string{"food", "wellington"},
+				     Categories: []string{"Food"},
+				     Permalink: []string{"archives/775-French-Toast"},
+				     Body: 	"<p>I'm just not that fond of french toast as it appears in most Wellington cafés. Mostly it's done with thick bread and incredibly sweet, usually with fruit or maple syrup.</p><p>I grew up with french toast being a savoury treat: egg, milk, pepper, and salt whisked together, with plain toast slice bread dunked into it and then pan-fried in butter until golden brown. Dee-licious.</p>",
+		},
+		{
+				Title:	"Bubba Ho-Tep",
+				Date:	"2005-11-26T22:42:00ZNZDT",
+				     Tags:	[]string{"food", "wellington"},
+				     Categories: []string{"Movies"},
+				     Permalink: []string{"archives/776-Bubba-Ho-Tep"},
+				     Body: 	`<p>The premise of <a href=""http://www.imdb.com/title/tt0281686/"">Bubba Ho-Tep</a> is bizarre and amusing: Elvis lives.  In a rest home.  With a black guy who thinks he&#8217;s JFK.  A mummy is stalking the corridors and, well, &#8220;ask not what your rest home can do for you, but what you can do for your rest home.&#8221;</p>
+
+					 	<p>The thing is, it&#8217;s creepy, but not like you&#8217;d expect&#8230;</p>
+
+					 	<p>As a horror movie, it&#8217;s pretty much what you&#8217;d expect from anything with <a href=""http://www.imdb.com/name/nm0132257/"">Bruce Campbell</a>: a good, solid, slightly scary, tongue in cheek horror.  The thing is it&#8217;s actually creepier at the start than once the movie gets into full swing&#151;and mummies have nothing to do with it.  Rather, it&#8217;s Campbell&#8217;s confused old man in a shitty rest home that sent chills up and down my spine.</p>
+
+					 	<p>It&#8217;s enough to make you hope you don&#8217;t ever grow old.</p>`,
+		},
+	}
+
+	for _, post := range posts {
 		/*
 		record, err := r.Read()
 		if err == io.EOF {
@@ -77,21 +104,20 @@ func main() {
 		}
 		*/
 
-		post := Post{
-		     Title:	"French Toast",
-		     Date:	"2005-11-26T19:07:00ZNZDT",
-		     Tags:	[]string{"food", "wellington"},
-		     Categories: []string{"Food"},
-		     Permalink: []string{"archives/775-French-Toast"},
-		     Body: 	"<p>I'm just not that fond of french toast as it appears in most Wellington cafés. Mostly it's done with thick bread and incredibly sweet, usually with fruit or maple syrup.</p><p>I grew up with french toast being a savoury treat: egg, milk, pepper, and salt whisked together, with plain toast slice bread dunked into it and then pan-fried in butter until golden brown. Dee-licious.</p>",
-		}
+		filename := makeFilename(post.Permalink[0]);
 
 		t := template.New("Post template")
 		t, err := t.Parse(templ)
 		checkError(err)
 
-		err = t.Execute(os.Stdout, post)
+		file, err := os.Create(filename)
 		checkError(err)
+		defer file.Close()
+
+		err = t.Execute(file, post)
+		checkError(err)
+
+		file.Sync()
 	}
 }
 
@@ -100,4 +126,15 @@ func checkError(err error) {
      	fmt.Println("Fatal error ", err.Error())
 	os.Exit(1)
      }
+}
+
+/*
+ Accepts a permalink and turns it into a file.
+
+ permalinks are in the format 'archives/entry_id-slug.html'
+*/
+func makeFilename(permalink string) (string) {
+	i, j := strings.LastIndex(permalink, "/") + 1, strings.LastIndex(permalink, path.Ext(permalink))
+	name := permalink[i:j] + ".md"
+	return name
 }
