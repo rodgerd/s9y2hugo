@@ -27,11 +27,11 @@ The mapping is straightforward:
 
 import (
 	"database/sql"
+	"flag"
 	"fmt"
+	"net/url"
 	"os"
-	"path"
 	"strconv"
-	"strings"
 	"text/template"
 	"time"
 	_ "github.com/lib/pq"
@@ -40,9 +40,9 @@ import (
 type Post struct {
      Date 			string
      Title			string
-     Tags	[]		string
-     Categories	[]string
-     Permalinks	[]string
+     Tags				string
+     Categories	string
+     Permalinks	string
 		 isDraft		string
      Body				string
 		 Extended		string
@@ -52,9 +52,9 @@ const templ = `
 +++
 Title	= "{{.Title}}"
 Date	= "{{.Date}}"
-Categories = [{{range $index, $elmt := .Categories}}{{if $index}},"{{$elmt}}"{{else}}"{{$elmt}}"{{end}}{{end}}]
-Tags	= [{{range $index, $elmt := .Tags}}{{if $index}},"{{$elmt}}"{{else}}"{{$elmt}}"{{end}}{{end}}]
-Aliases = [{{range $index, $elmt := .Permalinks}}{{if $index}},"{{$elmt}}"{{else}}"{{$elmt}}"{{end}}{{end}}]
+Categories = {{.Categories}}
+Tags	= {{.Tags}}
+Aliases = {{.Permalinks}}
 +++
 {{.Body}}
 {{.Extended}}
@@ -62,24 +62,34 @@ Aliases = [{{range $index, $elmt := .Permalinks}}{{if $index}},"{{$elmt}}"{{else
 
 func main() {
 
-	db, err := sql.Open("postgres", "user=foo dbname=bar host=baz")
+	userPtr := flag.String("user", "serendipity", "Database username")
+	passwordPtr := flag.String("password", "", "Database password")
+	dbnamePtr := flag.String("dbname", "serendipity", "Database name")
+	hostnamePtr := flag.String("host", "localhost", "Host name")
+	sslPtr := flag.String("sslmode", "disable", "SSL Mode")
+	flag.Parse()
+
+	connStr := "user=" + *userPtr + " password=" + *passwordPtr + " dbname=" + *dbnamePtr + " host=" + *hostnamePtr + " sslmode=" + *sslPtr;
+	db, err := sql.Open("postgres", connStr)
 	checkError(err)
+	defer db.Close()
 
 	rows, err := db.Query(`
-		select	e.timestamp,
+		select	e.id,
+						e.timestamp,
 						e.title,
 						(
-							select 	array_agg(tag)
+							select coalesce(json_agg(tag), '["no-tag"]')
 							from		serendipity_entrytags where entryid = e.id
 							) as tags,
 						(
-							select	array_agg(category_name)
+							select	coalesce(json_agg(category_name), '["no-cat"]')
 							from  	serendipity_category c, serendipity_entrycat ec
 							where  	c.categoryid = ec.categoryid and
 											ec.entryid = e.id
 						) as categories,
 						(
-							select	array_agg(permalink)
+							select	coalesce(json_agg(permalink), '["no-link"]')
 							from		serendipity_permalinks p
 							where		p.entry_id = e.id
 						) as url,
@@ -87,28 +97,31 @@ func main() {
 						e.body as body,
 						e.extended as extended
 		from		serendipity_entries e
-		order by e.timestamp
-		limit 10
+		order by e.id
 	`)
+	checkError(err)
 	defer rows.Close()
 
-	var timestamp	string;
-	var title	string;
-	var tags string;
-	var categories string;
-	var permalinks string;
-	var isDraft string;
-	var body string;
-	var extended string;
 	for rows.Next() {
-		err := rows.Scan(&timestamp, &title, &tags, &categories, &permalinks, &isDraft, &body, &extended)
+		var (
+			id string
+			timestamp	string
+			title string
+			tags string
+			categories string
+			permalinks string
+			isDraft string
+		 	body string
+			extended string
+		)
+		err := rows.Scan(&id, &timestamp, &title, &tags, &categories, &permalinks, &isDraft, &body, &extended)
 		// Transform the record into a Post
 		post := Post{
 			Title: 	title,
 			Date:		makeDate(timestamp),
-			Tags:		strings.Split(tags, ", "),
-			Categories: strings.Split(categories, ", "),
-			Permalinks: strings.Split(permalinks, ", "),
+			Tags:		tags,
+			Categories: categories,
+			Permalinks: permalinks,
 			isDraft: isDraft,
 			Body:	body,
 			Extended: extended,
@@ -120,7 +133,7 @@ func main() {
 		t, err = t.Parse(templ)
 		checkError(err)
 
-		filename := makeFilename(post.Permalinks[0])
+		filename := makeFilename(id, title)
 		file, err := os.Create(filename)
 		checkError(err)
 		defer file.Close()
@@ -155,8 +168,7 @@ func makeDate(old string) (string) {
 
  permalinks are assumed to be in the format 'archives/entry_id-slug.html; these will be transformed into entry_id-slug.md as the output file.'
 */
-func makeFilename(permalink string) (string) {
-	i, j := strings.LastIndex(permalink, "/") + 1, strings.LastIndex(permalink, path.Ext(permalink))
-	name := permalink[i:j] + ".md"
+func makeFilename(id string, title string) (string) {
+	name := id + "-" + url.QueryEscape(title) + ".md"
 	return name
 }
