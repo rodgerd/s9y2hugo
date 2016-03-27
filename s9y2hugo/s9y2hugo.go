@@ -27,18 +27,14 @@ The mapping is straightforward:
 
 import (
 	"database/sql"
-	"encoding/csv"
-	"encoding/json"
 	"fmt"
-	"io"
-	"log"
 	"os"
 	"path"
 	"strconv"
 	"strings"
 	"text/template"
 	"time"
-	"github.com/lib/pq"
+	_ "github.com/lib/pq"
 )
 
 type Post struct {
@@ -66,7 +62,7 @@ Aliases = [{{range $index, $elmt := .Permalinks}}{{if $index}},"{{$elmt}}"{{else
 
 func main() {
 
-	db, err := sql.Open("postgres", "user=foo dbname=bar")
+	db, err := sql.Open("postgres", "user=foo dbname=bar host=baz")
 	checkError(err)
 
 	rows, err := db.Query(`
@@ -94,19 +90,28 @@ func main() {
 		order by e.timestamp
 		limit 10
 	`)
+	defer rows.Close()
 
-	for row in rows  {
-
+	var timestamp	string;
+	var title	string;
+	var tags string;
+	var categories string;
+	var permalinks string;
+	var isDraft string;
+	var body string;
+	var extended string;
+	for rows.Next() {
+		err := rows.Scan(&timestamp, &title, &tags, &categories, &permalinks, &isDraft, &body, &extended)
 		// Transform the record into a Post
 		post := Post{
-			Title: 	row[1],
-			Date:		makeDate(record[0]),
-			Tags:		strings.Split(record[2], ", "),
-			Categories: strings.Split(record[3], ", "),
-			Permalinks: strings.Split(record[4], ", "),
-			isDraft: record[5],
-			Body:	record[6],
-			Extended: record[7],
+			Title: 	title,
+			Date:		makeDate(timestamp),
+			Tags:		strings.Split(tags, ", "),
+			Categories: strings.Split(categories, ", "),
+			Permalinks: strings.Split(permalinks, ", "),
+			isDraft: isDraft,
+			Body:	body,
+			Extended: extended,
 		}
 
 		// Process the entries through the blog template.
