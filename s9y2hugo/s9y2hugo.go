@@ -14,7 +14,7 @@ aliases.
 The input spec is straightforward and derived from the serendipity-extract:
     Column    Source Description     				Output Field
     ------    ------------------	      	  ------------
-    [0]       Timestamp-with-timezone				Date
+    [0]       TUnix epoch										Date in RFC3339 format
     [1]       Title			      							Title
     [2]       Description
     [3]       Comma-delimeted array of tags  Tags in the format ["tag1","tag2"]
@@ -35,8 +35,10 @@ import (
 	//"log"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"text/template"
+	"time"
 )
 
 type Post struct {
@@ -50,8 +52,8 @@ type Post struct {
 
 const templ = `
 +++
-Title	= {{.Title}}
-Date	= {{.Date}}
+Title	= "{{.Title}}"
+Date	= "{{.Date}}"
 Categories = [{{range $index, $elmt := .Categories}}{{if $index}},"{{$elmt}}"{{else}}"{{$elmt}}"{{end}}{{end}}]
 Tags	= [{{range $index, $elmt := .Tags}}{{if $index}},"{{$elmt}}"{{else}}"{{$elmt}}"{{end}}{{end}}]
 Aliases = [{{range $index, $elmt := .Permalink}}{{if $index}},"{{$elmt}}"{{else}}"{{$elmt}}"{{end}}{{end}}]
@@ -71,7 +73,7 @@ func main() {
 
 	posts := []Post{
 		{		     Title:	"French Toast",
-				     Date:	"2005-11-26T19:07:00ZNZDT",
+				     Date:	"1132985220",
 				     Tags:	[]string{"food", "wellington"},
 				     Categories: []string{"Food"},
 				     Permalink: []string{"archives/775-French-Toast"},
@@ -79,15 +81,15 @@ func main() {
 		},
 		{
 				Title:	"Bubba Ho-Tep",
-				Date:	"2005-11-26T22:42:00ZNZDT",
+				Date:	"1132985220",
 				     Tags:	[]string{"food", "wellington"},
 				     Categories: []string{"Movies"},
 				     Permalink: []string{"archives/776-Bubba-Ho-Tep"},
-				     Body: 	`<p>The premise of <a href=""http://www.imdb.com/title/tt0281686/"">Bubba Ho-Tep</a> is bizarre and amusing: Elvis lives.  In a rest home.  With a black guy who thinks he&#8217;s JFK.  A mummy is stalking the corridors and, well, &#8220;ask not what your rest home can do for you, but what you can do for your rest home.&#8221;</p>
+				     Body: 	`<p>The premise of <a href="http://www.imdb.com/title/tt0281686/">Bubba Ho-Tep</a> is bizarre and amusing: Elvis lives.  In a rest home.  With a black guy who thinks he&#8217;s JFK.  A mummy is stalking the corridors and, well, &#8220;ask not what your rest home can do for you, but what you can do for your rest home.&#8221;</p>
 
 					 	<p>The thing is, it&#8217;s creepy, but not like you&#8217;d expect&#8230;</p>
 
-					 	<p>As a horror movie, it&#8217;s pretty much what you&#8217;d expect from anything with <a href=""http://www.imdb.com/name/nm0132257/"">Bruce Campbell</a>: a good, solid, slightly scary, tongue in cheek horror.  The thing is it&#8217;s actually creepier at the start than once the movie gets into full swing&#151;and mummies have nothing to do with it.  Rather, it&#8217;s Campbell&#8217;s confused old man in a shitty rest home that sent chills up and down my spine.</p>
+					 	<p>As a horror movie, it&#8217;s pretty much what you&#8217;d expect from anything with <a href="http://www.imdb.com/name/nm0132257/">Bruce Campbell</a>: a good, solid, slightly scary, tongue in cheek horror.  The thing is it&#8217;s actually creepier at the start than once the movie gets into full swing&#151;and mummies have nothing to do with it.  Rather, it&#8217;s Campbell&#8217;s confused old man in a shitty rest home that sent chills up and down my spine.</p>
 
 					 	<p>It&#8217;s enough to make you hope you don&#8217;t ever grow old.</p>`,
 		},
@@ -104,7 +106,9 @@ func main() {
 		}
 		*/
 
-		filename := makeFilename(post.Permalink[0]);
+		filename := makeFilename(post.Permalink[0])
+		println(makeDate(post.Date))
+		post.Date = (makeDate(post.Date))
 
 		t := template.New("Post template")
 		t, err := t.Parse(templ)
@@ -126,6 +130,18 @@ func checkError(err error) {
      	fmt.Println("Fatal error ", err.Error())
 	os.Exit(1)
      }
+}
+
+
+/*
+	Convert the date as extracted from postgresql into RFC3339 format so hugo will parse it correctly
+*/
+func makeDate(old string) (string) {
+	i, err := strconv.ParseInt(old, 10, 64)
+	checkError(err)
+	t := time.Unix(i,0)
+	// fmt.Println(t.Format(time.RFC3339))
+	return t.Format(time.RFC3339)
 }
 
 /*
