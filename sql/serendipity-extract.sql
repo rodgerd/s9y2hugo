@@ -23,4 +23,4 @@ from	serendipity_entries e
 where 	e.id = 1334
 order by e.timestamp
 limit 1
-) to stdout with csv;
+) to stdout with delimiter = '|';

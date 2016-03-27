@@ -26,10 +26,11 @@ The input spec is straightforward and derived from the serendipity-extract:
 */
 
 import (
-	//"encoding/csv"
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
-	//"io"
-	//"log"
+	"io"
+	"log"
 	"os"
 	"path"
 	"strconv"
@@ -43,7 +44,8 @@ type Post struct {
      Title			string
      Tags	[]		string
      Categories	[]string
-     Permalink	[]string
+     Permalinks	[]string
+		 isDraft		string
      Body				string
 		 Extended		string
 }
@@ -54,21 +56,17 @@ Title	= "{{.Title}}"
 Date	= "{{.Date}}"
 Categories = [{{range $index, $elmt := .Categories}}{{if $index}},"{{$elmt}}"{{else}}"{{$elmt}}"{{end}}{{end}}]
 Tags	= [{{range $index, $elmt := .Tags}}{{if $index}},"{{$elmt}}"{{else}}"{{$elmt}}"{{end}}{{end}}]
-Aliases = [{{range $index, $elmt := .Permalink}}{{if $index}},"{{$elmt}}"{{else}}"{{$elmt}}"{{end}}{{end}}]
+Aliases = [{{range $index, $elmt := .Permalinks}}{{if $index}},"{{$elmt}}"{{else}}"{{$elmt}}"{{end}}{{end}}]
 +++
 {{.Body}}
 {{.Extended}}
 `
 
 func main() {
-/*
-	 in := `timestamp,title,description, tags, categories, permalink, project_url, body
-2005-11-26T19:07:00ZNZDT,French Toast,Test,,"[""Food""]",archives/775-French-Toast.html,http://diaspora.gen.nz/~rodgerd/,"<p>I'm just not that fond of french toast as it appears in most Wellington cafés. Mostly it's done with thick bread and incredibly sweet, usually with fruit or maple syrup.</p><p>I grew up with french toast being a savoury treat: egg, milk, pepper, and salt whisked together, with plain toast slice bread dunked into it and then pan-fried in butter until golden brown. Dee-licious.</p>"
-`
-*/
 
-	// r := csv.NewReader(strings.NewReader(in))
 
+	/*
+	posts := new []Post;
 	posts := []Post{
 		{
 			Title:	"French Toast",
@@ -95,9 +93,13 @@ func main() {
 			Extended: "",
 		},
 	}
-
 	for _, post := range posts {
-		/*
+	*/
+
+	r := csv.NewReader(os.Stdin)
+	//for _, post := range posts {
+	for {
+		// Iterate over the records
 		record, err := r.Read()
 		if err == io.EOF {
 			break
@@ -105,18 +107,26 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		*/
-
-		// We call some routines that tidy up the input data in a variety of ways.
-		filename := makeFilename(post.Permalink[0])
-		post.Date = (makeDate(post.Date))
+		// Transform the record into a Post
+		post := Post{
+			Title: 	record[1],
+			Date:		makeDate(record[0]),
+			Tags:		strings.Split(record[2], ", "),
+			Categories: strings.Split(record[3], ", "),
+			Permalinks: strings.Split(record[4], ", "),
+			isDraft: record[5],
+			Body:	record[6],
+			Extended: record[7],
+		}
+		fmt.Println(post)
 
 		// Process the entries through the blog template.
 		// Output one entry per file.
 		t := template.New("Post template")
-		t, err := t.Parse(templ)
+		t, err = t.Parse(templ)
 		checkError(err)
 
+		filename := makeFilename(post.Permalinks[0])
 		file, err := os.Create(filename)
 		checkError(err)
 		defer file.Close()
@@ -128,13 +138,28 @@ func main() {
 	}
 }
 
+/*
+	Postgresql emits arrays which have been collapsed with array_agg into a string with the format {item,item,item}.
+
+	This function convert those into a chunk of JSON.  It would probably be easier to upgrade to a version of postgresql that supports the to_json function natively...
+
+	Takes the postgresql array_agg string and returns a string formatted as JSON.
+*/
+func arrayToJSON (pg string) (string)  {
+	// strings.Replace(pg, ", ", ",", -1)
+	// array_agg pads with spaces with a pain in the arse
+	a,_ := json.Marshal(strings.Split(pg, ", "))
+	j := string(a)
+	fmt.Println(j)
+	return j
+}
+
 func checkError(err error) {
      if err != nil {
      	fmt.Println("Fatal error ", err.Error())
-	os.Exit(1)
+			os.Exit(1)
      }
 }
-
 
 /*
 	Convert the date as extracted from postgresql into RFC3339 format so hugo will parse it correctly
