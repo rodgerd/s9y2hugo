@@ -10,6 +10,8 @@ aliases.
 
 ## Requirements
 
+The version of the schema tested against is 1.6.x.  It has not been tested against newer or older versions of serendipity.
+
 It has been written against postgresql and uses the to_json feature which was merged in postgresql 9.3.
 
 It relies on the github.com/lib/pg driver for postgresql access.
@@ -18,10 +20,13 @@ It relies on the github.com/lib/pg driver for postgresql access.
 
 s9y2hugo takes the following parameters:
 
--user
--password
--dbname
--host
+param          | value
+---------------|------
+-user	       | Username for the postgresql database containing the serendipity schema.
+-password      | Password for that user.
+-dbname	       | DB containing the serendipity schema.
+-host	       | Hostname of the database.
+-ssl	       | SSL mode: none, verify, etc.  Same as for any PG connection.
 
 ## Limitations and Gotchas
 
