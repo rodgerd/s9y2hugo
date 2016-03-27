@@ -106,10 +106,12 @@ func main() {
 		}
 		*/
 
+		// We call some routines that tidy up the input data in a variety of ways.
 		filename := makeFilename(post.Permalink[0])
-		println(makeDate(post.Date))
 		post.Date = (makeDate(post.Date))
 
+		// Process the entries through the blog template.
+		// Output one entry per file.
 		t := template.New("Post template")
 		t, err := t.Parse(templ)
 		checkError(err)
@@ -147,7 +149,7 @@ func makeDate(old string) (string) {
 /*
  Accepts a permalink and turns it into a file.
 
- permalinks are in the format 'archives/entry_id-slug.html'
+ permalinks are assumed to be in the format 'archives/entry_id-slug.html; these will be transformed into entry_id-slug.md as the output file.'
 */
 func makeFilename(permalink string) (string) {
 	i, j := strings.LastIndex(permalink, "/") + 1, strings.LastIndex(permalink, path.Ext(permalink))
