@@ -29,23 +29,23 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	_ "github.com/lib/pq"
 	"net/url"
 	"os"
 	"strconv"
 	"text/template"
 	"time"
-	_ "github.com/lib/pq"
 )
 
 type Post struct {
-     Date 			string
-     Title			string
-     Tags				string
-     Categories	string
-     Permalinks	string
-		 isDraft		string
-     Body				string
-		 Extended		string
+	Date       string
+	Title      string
+	Tags       string
+	Categories string
+	Permalinks string
+	isDraft    string
+	Body       string
+	Extended   string
 }
 
 const templ = `
@@ -69,7 +69,7 @@ func main() {
 	sslPtr := flag.String("sslmode", "disable", "SSL Mode")
 	flag.Parse()
 
-	connStr := "user=" + *userPtr + " password=" + *passwordPtr + " dbname=" + *dbnamePtr + " host=" + *hostnamePtr + " sslmode=" + *sslPtr;
+	connStr := "user=" + *userPtr + " password=" + *passwordPtr + " dbname=" + *dbnamePtr + " host=" + *hostnamePtr + " sslmode=" + *sslPtr
 	db, err := sql.Open("postgres", connStr)
 	checkError(err)
 	defer db.Close()
@@ -104,27 +104,27 @@ func main() {
 
 	for rows.Next() {
 		var (
-			id string
-			timestamp	string
-			title string
-			tags string
+			id         string
+			timestamp  string
+			title      string
+			tags       string
 			categories string
 			permalinks string
-			isDraft string
-		 	body string
-			extended string
+			isDraft    string
+			body       string
+			extended   string
 		)
 		err := rows.Scan(&id, &timestamp, &title, &tags, &categories, &permalinks, &isDraft, &body, &extended)
 		// Transform the record into a Post
 		post := Post{
-			Title: 	title,
-			Date:		makeDate(timestamp),
-			Tags:		tags,
+			Title:      title,
+			Date:       makeDate(timestamp),
+			Tags:       tags,
 			Categories: categories,
 			Permalinks: permalinks,
-			isDraft: isDraft,
-			Body:	body,
-			Extended: extended,
+			isDraft:    isDraft,
+			Body:       body,
+			Extended:   extended,
 		}
 
 		// Process the entries through the blog template.
@@ -146,19 +146,19 @@ func main() {
 }
 
 func checkError(err error) {
-     if err != nil {
-     	fmt.Println("Fatal error ", err.Error())
-			os.Exit(1)
-     }
+	if err != nil {
+		fmt.Println("Fatal error ", err.Error())
+		os.Exit(1)
+	}
 }
 
 /*
 	Convert the date as extracted from postgresql into RFC3339 format so hugo will parse it correctly
 */
-func makeDate(old string) (string) {
+func makeDate(old string) string {
 	i, err := strconv.ParseInt(old, 10, 64)
 	checkError(err)
-	t := time.Unix(i,0)
+	t := time.Unix(i, 0)
 	// fmt.Println(t.Format(time.RFC3339))
 	return t.Format(time.RFC3339)
 }
@@ -168,7 +168,7 @@ func makeDate(old string) (string) {
 
  permalinks are assumed to be in the format 'archives/entry_id-slug.html; these will be transformed into entry_id-slug.md as the output file.'
 */
-func makeFilename(id string, title string) (string) {
+func makeFilename(id string, title string) string {
 	name := id + "-" + url.QueryEscape(title) + ".md"
 	return name
 }
